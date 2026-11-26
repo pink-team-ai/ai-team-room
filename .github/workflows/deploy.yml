@@ -1,0 +1,32 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 공개 repo의 wrangler.toml은 D1 ID가 자리표시자라서,
+      # D1_DATABASE_ID 시크릿이 있으면 채우고, 없으면 파일을 빼서 대시보드 설정을 그대로 씁니다.
+      - name: Prepare wrangler.toml
+        env:
+          D1_ID: ${{ secrets.D1_DATABASE_ID }}
+        run: |
+          if [ -n "$D1_ID" ]; then
+            sed -i "s/YOUR_D1_DATABASE_ID/$D1_ID/" wrangler.toml
+          else
+            rm -f wrangler.toml
+          fi
+          rm -rf .github
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy . --project-name ai-team-room --branch main
